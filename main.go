@@ -5,6 +5,7 @@ import (
 	"os"
 
 	"github.com/gorilla/mux"
+	"github.com/joho/godotenv"
 	"github.com/mhdianrush/go-json-web-token/configs"
 	"github.com/mhdianrush/go-json-web-token/routes"
 	"github.com/sirupsen/logrus"
@@ -13,8 +14,9 @@ import (
 func main() {
 	configs.ConnectDB()
 
-	r := mux.NewRouter()
-	router := r.PathPrefix("/api").Subrouter()
+	route := mux.NewRouter()
+
+	router := route.PathPrefix("/api").Subrouter()
 	routes.AuthRoutes(router)
 	routes.UserRoutes(router)
 
@@ -22,14 +24,21 @@ func main() {
 
 	file, err := os.OpenFile("application.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0666)
 	if err != nil {
-		panic(err)
+		logger.Printf("failed create log file %s", err.Error())
 	}
 	logger.SetOutput(file)
 
-	logger.Println("Server Running On Port 8080")
-
-	err = http.ListenAndServe(":8080", router)
-	if err != nil {
-		panic(err)
+	if err := godotenv.Load(); err != nil {
+		logger.Printf("failed load env file %s", err.Error())
 	}
+
+	server := http.Server{
+		Addr:    ":" + os.Getenv("SERVER_PORT"),
+		Handler: router,
+	}
+	if err = server.ListenAndServe(); err != nil {
+		logger.Printf("failed connect to server")
+	}
+
+	logger.Printf("server running on port %s", os.Getenv("SERVER_PORT"))
 }
